@@ -113,10 +113,11 @@ abstract class TextRank
      *
      *  @param string $event_name
      *  @param array  $params
+     *  @param bool   $must_run
      *
      *  @return bool
      */
-    final protected function triggerEvent($event_name, $params=array())
+    final protected function triggerEvent($event_name, $params=array(), $must_run=FALSE)
     {
         $called = FALSE;
         if (isset(self::$_events[$event_name])) {
@@ -133,6 +134,9 @@ abstract class TextRank
         if (isset($this) && is_callable(array($this, $event_name))) {
             $called = TRUE;
             call_user_func_array(array($this, $event_name), $params);
+        }
+        if ($must_run && !$called) {
+            throw new Exception("There is not callback for event `{$event_name}`");
         }
         return $called;
     }
@@ -162,6 +166,7 @@ abstract class TextRank
         $this->triggerEvent('new_text', array(&$text));
         $this->raw_text = $text;
         $this->text     = $text;
+
         /** 
          *  clean_text Event
          *
@@ -176,30 +181,36 @@ abstract class TextRank
          *  ranking algorithm
          */
         $features = array();
-        $params   = array($this->text, &$features);
-        if ($this->triggerEvent('get_features', $params) === FALSE) {
-            throw new Exception("There is not required event `get_features`");
-        }
+        $this->triggerEvent('get_features', array($this->text, &$features), TRUE);
         if (!is_array($features)) {
             throw new Exception("Features returned by event `get_features` is not an array");
         }
+        /* Copy features (before filtering) to the current object */
+        $this->features = $features;
 
         /**
          *  Filter Features
          *  
          *  Call event to clean up non-useful features. 
-         *
-         *  NOTE: Filter_feature only can use `unset` to delete elements,
-         *  and it cannot re-create the array after this process (with array_values).
          */
         $this->triggerEvent('filter_features', array(&$features));
         if (!is_array($features)) {
             throw new Exception("Features returned by event `filter_features` is not an array");
         }
+    
+        $features = array_values($features);
 
-        /* Copy the features to the object */
-        $this->features = $features;
+        /**
+         *  Build the Graph of features
+         */
+        $this->triggerEvent('build_graph', array($features, array($this->ranking, 'addConnection')), TRUE);
 
+        /**
+         *  Call our ranking object method
+         */
+        $result = $this->ranking->calculate();
+
+        $this->triggerEvent('post_ranking', array(&$result));
     }
     // }}}
 
@@ -223,7 +234,7 @@ TextRank::addEvent('get_features', function($text, &$features) {
 
 TextRank::addEvent('filter_features', function (&$features) {
     foreach ($features as $id => $word) {
-        if (strlen($word) < 3) {
+        if (strlen($word) < 4) {
             unset($features[$id]);
         }
     }
@@ -231,7 +242,26 @@ TextRank::addEvent('filter_features', function (&$features) {
 
 class Keywords extends TextRank
 {
+    /**
+     *  Build Graph
+     *
+     *  Simple approach to build a graph out of a text using 3-grams
+     */
+    function build_graph($features, $callback)
+    {
+        for ($i=0; $i < count($features); $i++) {
+            $feature = $features[$i];
+            for ($e=0,$i++; $e <= 3 && $i < count($features); $e++, $i++) {
+                call_user_func($callback, $feature, $features[$i]);
+                call_user_func($callback, $features[$i], $feature);
+            }
+        }
+    }
 
+    function post_ranking(&$result)
+    {
+        var_dump($result);die();
+    }
 }
 
 $c = new Keywords;
