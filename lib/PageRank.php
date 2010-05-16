@@ -47,7 +47,7 @@
  *  @version 1.0
  *
  */
-final class PageRank
+final class PageRank extends TextRank_Ranking
 {
     /**
      *  Damping factor
@@ -87,7 +87,7 @@ final class PageRank
     {
         /* Default values */
         $this->setDamping("0.85");
-        $this->setConvergence("0.0001");
+        $this->setConvergence("0.001");
     }
     // }}}
 
@@ -156,9 +156,78 @@ final class PageRank
         $this->outlinks[$source_node] += 1;
 
         /* By default values for both nodes */
-        $this->node[$source_node]      = 0.15;
-        $this->node[$dest_node]        = 0.15;
+        $this->nodes[$source_node]      = 0.15;
+        $this->nodes[$dest_node]        = 0.15;
         return TRUE;
+    }
+    // }}}
+
+    // subs(array $a, array $b) {{{
+    /**
+     *  Array substraction
+     *
+     *  @param array $a
+     *  @param array $b
+     *  
+     *  @return array
+     */
+    final protected function subs($a, $b)
+    {
+        $array = array();
+        if (count($a) != count($a)) {
+            throw new Exception("Array shape  mismatch");
+        }
+        foreach ($a as $index => $value) {
+            if (!isset($b[$index])) {
+                throw new Exception("Array shape  mismatch");
+            }
+            $array[$index] = $value - $b[$index]; 
+        }
+        return $array;
+    }
+    // }}}
+
+    // mult(array $a, array $b) {{{
+    /**
+     *  Array multiplication
+     *
+     *  @param array $a
+     *  @param array $b
+     *  
+     *  @return array
+     */
+    final protected function mult($a, $b)
+    {
+        $val = 0;
+        if (count($a) != count($a)) {
+            throw new Exception("Array shape  mismatch");
+        }
+        foreach ($a as $index => $value) {
+            if (!isset($b[$index])) {
+                throw new Exception("Array shape  mismatch");
+            }
+            $val += $b[$index]  * $value;
+        }
+        return $val;
+    }
+    // }}}
+
+    // convergence(array $current) {{{
+    /**
+     *  Convergence
+     *
+     *  Check if our pagerank converged.
+     *
+     *  @param array $current
+     *  @param float $convergence 
+     *
+     *  @return bool
+     */
+    protected function convergence($current)
+    {
+        $total = count($current);
+        $diff  = $this->subs($current,$this->nodes);
+        return (sqrt($this->mult($diff, $diff))/$total < $this->convergence);
     }
     // }}}
 
@@ -191,69 +260,6 @@ final class PageRank
     }
     // }}}
 
-    // subs(array $a, array $b) {{{
-    /**
-     *  Array substraction
-     *
-     *  @param array $a
-     *  @param array $b
-     *  
-     *  @return array
-     */
-    final protected function subs($a, $b)
-    {
-        $array = array();
-        foreach ($a as $index => $value) {
-            if (!isset($b[$index]) || $b[$index] == $value) {
-                continue;
-            }
-            $array[$index] = $value - $b[$index]; 
-        }
-        return $array;
-    }
-    // }}}
-
-    // mult(array $a, array $b) {{{
-    /**
-     *  Array multiplication
-     *
-     *  @param array $a
-     *  @param array $b
-     *  
-     *  @return array
-     */
-    final protected function mult($a, $b)
-    {
-        $val = 0;
-        foreach ($a as $index => $value) {
-            if (!isset($b[$index])) {
-                continue;
-            }
-            $val += $b[$index]  * $value;
-        }
-        return $val;
-    }
-    // }}}
-
-    // convergence(array $current) {{{
-    /**
-     *  Convergence
-     *
-     *  Check if our pagerank converged.
-     *
-     *  @param array $current
-     *  @param float $convergence 
-     *
-     *  @return bool
-     */
-    protected function convergence($current)
-    {
-        $total = count($current);
-        $diff  = $this->subs($current,$this->nodes);
-        return (sqrt($this->mult($diff, $diff))/$total < $this->convergence);
-    }
-    // }}}
-
     // calculate() {{{
     /**
      *  Pagerank main loop
@@ -268,9 +274,7 @@ final class PageRank
         for ($i=0; !$done ; $i++) {
             $new_nodes = array();
             $this->iteration($new_nodes);
-            if ($i > 0) {
-                $done = $this->convergence($new_nodes);
-            }
+            $done = $this->convergence($new_nodes);
             /* swap, replace nodes with new nodes
              * do this until the convergence is TRUE and
              * the loop ends
@@ -284,15 +288,6 @@ final class PageRank
     // }}}
 
 }
-
-$c = new Pagerank;
-$c->addConnection(1, 2);
-$c->addConnection(1, 4);
-$c->addConnection(1, 5);
-$c->addConnection(4, 5);
-$c->addConnection(4, 1);
-$c->addConnection(5, 1);
-var_dump($c->calculate());
 
 /*
  * Local variables:
