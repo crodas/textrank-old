@@ -245,6 +245,7 @@ final class PageRank extends TextRank_Ranking
         $graph    = & $this->graph;
         $outlinks = & $this->outlinks;
         $nodes    = & $this->nodes;
+        $damping  = (1-$this->damping)/count($nodes);
         foreach ($graph as $node => $links) {
             /**
              *  Our rank is the sum of all incoming links ($links)
@@ -255,7 +256,7 @@ final class PageRank extends TextRank_Ranking
             foreach ($links as $node_id) {
                 $score += $nodes[$node_id] / $outlinks[$node_id];
             }
-            $new_nodes[$node] = (1-$this->damping) + $this->damping * $score; 
+            $new_nodes[$node] = $damping + $this->damping * $score; 
         }
     }
     // }}}

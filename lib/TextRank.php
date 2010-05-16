@@ -234,7 +234,7 @@ TextRank::addEvent('get_features', function($text, &$features) {
 
 TextRank::addEvent('filter_features', function (&$features) {
     foreach ($features as $id => $word) {
-        if (strlen($word) < 4) {
+        if (strlen($word) < 3) {
             unset($features[$id]);
         }
     }
@@ -249,11 +249,13 @@ class Keywords extends TextRank
      */
     function build_graph($features, $callback)
     {
-        for ($i=0; $i < count($features); $i++) {
-            $feature = $features[$i];
-            for ($e=0,$i++; $e <= 3 && $i < count($features); $e++, $i++) {
-                call_user_func($callback, $feature, $features[$i]);
-                call_user_func($callback, $features[$i], $feature);
+        $nsize = 3;
+        $size  = count($features);
+        for ($i=0; $i < $size; $i++) {
+            for ($min=$i-$nsize, $max=$i+$nsize; $min < $max; $min++) {
+                if (isset($features[$min]) && $min != $i) {
+                    call_user_func($callback, $features[$i], $features[$min]);
+                }
             }
         }
     }
