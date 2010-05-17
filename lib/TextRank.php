@@ -41,6 +41,7 @@
 define('TEXTRANK_DIR', dirname(__FILE__));
 require TEXTRANK_DIR."/TextRank_Ranking.php";
 require TEXTRANK_DIR."/PageRank.php";
+require TEXTRANK_DIR."/Keywords.php";
 
 /**
  *  TextRank main class
@@ -245,109 +246,6 @@ abstract class TextRank
     // }}}
 
 }
-
-/**
- *  Simple Event handler to clean up a text (Spanish texts)
- */
-TextRank::addEvent('clean_text', function (&$text) {
-    $text = strtolower($text);
-    $text = preg_replace("/[^a-záéíóúüñ ]/", " ", $text);
-    $text = preg_replace("/ +/", " ", $text);
-});
-
-/**
- *  
- */
-TextRank::addEvent('get_features', function($text, &$features) {
-    $features = explode(" ", $text);
-});
-
-TextRank::addEvent('filter_features', function (&$features) {
-    foreach ($features as $id => $word) {
-        if (strlen($word) < 3) {
-            unset($features[$id]);
-        }
-    }
-});
-
-class Keywords extends TextRank
-{
-
-    // build_graph($features, $callback) {{{
-    /**
-     *  Build Graph
-     *
-     *  Simple approach to build a graph out of a text using 3-grams
-     */
-    function build_graph($features, $callback)
-    {
-        $nsize = 3;
-        $size  = count($features);
-        for ($i=0; $i < $size; $i++) {
-            for ($min=$i-$nsize, $max=$i+$nsize; $min < $max; $min++) {
-                if (isset($features[$min]) && $min != $i) {
-                    call_user_func($callback, $features[$i], $features[$min]);
-                }
-            }
-        }
-    }
-    // }}}
-
-    // filter_features(&$features) {{{
-    /**
-     *  Filter Feature event
-     *
-     *  Simple stopword cleanup if $lang is setted
-     */
-    function filter_features(&$features)
-    {
-        if ($this->lang) {
-            $stopword = self::LoadStopWords($this->lang);
-            foreach ($features as $id => $feature) {
-                if (isset($stopword[$feature])) {
-                    unset($features[$id]);
-                }
-            }
-        }
-    }
-    // }}}
-
-    function post_ranking(&$result)
-    {
-        var_dump($result);die();
-    }
-}
-
-$c = new Keywords;
-$c->addText(<<<EOF
-
-Al tiempo que los expertos señalaron en los últimos días que la cantidad de petróleo vertida al mar tras el hundimiento de la plataforma Deepwater Horizon era mucho mayor a la estimada, Obama prometió el viernes que no descansaría hasta que la pérdida estuviera contenida y sellada.
-
-Ingenieros de la firma de energía de British Petroleum, utilizando robots submarinos, luchaban por implementar su táctica más reciente para contener el derrame a 1.600 metros bajo la superficie del mar.
-
-El plan es conectar un "tubo de inserción" al oleoducto para canalizar el petróleo derramado a un buque contenedor en la superficie, pero el proceso está tomando más tiempo del esperado. "Es verdaderamente complicado debido a la  profundidad", dijo a la AFP el portavoz John Crabtree.
-
-El tubo de inserción se considera más efectivo que un plan anterior de utilizar un "sombrero", un contenedor añadido a un tubo de sifón que iba a ser colocado sobre la grieta para recolectar y canalizar hacia afuera el petróleo.
-
-Los expertos temen que el petróleo podría estar volcándose a un nivel de hasta 2,9 millones de galones diarios, más de diez veces más rápido que las estimaciones del Gobierno, de 210.000 galones diarios.
-
-Estas cifras sugieren que el derrame ha eclipsado al de Exxon Valdez en 1989, el peor desastre ecológico en la historia de Estados Unidos.
-
-Un grupo ambientalista, el Centro para la Diversidad Biológica, dijo que había notificado su intención de demandar al secretario del Interior, Ken Salazar, por ignorar las leyes de protección de mamíferos marinos.
-
-"Bajo la mirada de Salazar, el Departamento del Interior ha tratado al Golfo de México como un área sacrificada donde las leyes son ignoradas y la protección de la vida salvaje está en el asiento trasero de los beneficios de las compañías petroleras", señaló el director de océanos de esa institución ecológica, Miyoko Sakashita.
-
-En una declaración del viernes, el presidente Obama arremetió contra las compañías petroleras por intentar culparse mutuamente por la marea negra en el Golfo de México y juró poner fin a las relaciones "íntimas" entre la industria y las agencias públicas de control.
-
-En un tono inusualmente duro, Obama dijo que había ordenado una reforma de "arriba a abajo" de las agencias federales encargadas de autorizar las perforaciones en el mar y anunció que se revisarían las formas en que se hacen cumplir las normas de protección ambiental.
-
-El mandatario atacó a las tres compañías petroleras involucradas en el accidente, que dieron lo que llamó "un espectáculo ridículo" por tratar de culparse mutuamente de la tragedia ante una comisión del Senado.
-
-"No voy a tolerar más dedos acusadores ni irresponsabilidad", dijo el mandatario tras la reunión con sus asesores. Visiblemente enojado, Obama dijo que el Gobierno federal también tenía que asumir responsabilidades y prometió un control más estricto sobre la industria petrolera.
-EOF
-, "spanish");
-
-var_dump($c);
 
 /*
  * Local variables:
