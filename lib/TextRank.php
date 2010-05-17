@@ -51,10 +51,12 @@ require TEXTRANK_DIR."/PageRank.php";
 abstract class TextRank
 {
     private static $_events;
+    private static $_stopwords;
     protected $raw_text;
     protected $text;
     protected $features;
     protected $ranking;
+    protected $lang;
 
     function __construct()
     {
@@ -66,6 +68,32 @@ abstract class TextRank
             throw new Exception("Invalid ranking object");
         }
     }
+
+    // LoadStopWords(string $lang) {{{
+    /**
+     *  Load a given stopwords if it exists.
+     *
+     *  @param string $lang
+     *
+     *  @return array
+     */
+    final protected function LoadStopWords($lang)
+    {
+        $lang = ucfirst($lang);
+        if (!isset(self::$_stopwords[$lang])) {
+            if (is_readable(TEXTRANK_DIR."/stopwords/{$lang}.txt")) {
+                $list = file_get_contents(TEXTRANK_DIR."/stopwords/{$lang}.txt");
+                $list = explode("\n", $list);
+                $list = array_combine($list, $list);
+            } else {
+                $list = array();
+            }
+            self::$_stopwords[$lang] = $list;
+        }
+
+        return self::$_stopwords[$lang];
+    }
+    // }}}
 
     // ranking_class(&$object) {{{
     /**
@@ -142,7 +170,7 @@ abstract class TextRank
     }
     // }}}
 
-    // addText(string $text) {{{
+    // addText(string $text, string $lang=NULL) {{{
     /**
      *  addText
      *
@@ -151,10 +179,11 @@ abstract class TextRank
      *  @events new_text, clean_text
      *
      *  @param string $text
+     *  @param string $lang
      *
      *  @return void
      */
-    final function addText($text)
+    final function addText($text, $lang=NULL)
     {
         /**
          *  new_text Event
@@ -166,6 +195,7 @@ abstract class TextRank
         $this->triggerEvent('new_text', array(&$text));
         $this->raw_text = $text;
         $this->text     = $text;
+        $this->lang     = $lang;
 
         /** 
          *  clean_text Event
@@ -242,6 +272,8 @@ TextRank::addEvent('filter_features', function (&$features) {
 
 class Keywords extends TextRank
 {
+
+    // build_graph($features, $callback) {{{
     /**
      *  Build Graph
      *
@@ -259,6 +291,26 @@ class Keywords extends TextRank
             }
         }
     }
+    // }}}
+
+    // filter_features(&$features) {{{
+    /**
+     *  Filter Feature event
+     *
+     *  Simple stopword cleanup if $lang is setted
+     */
+    function filter_features(&$features)
+    {
+        if ($this->lang) {
+            $stopword = self::LoadStopWords($this->lang);
+            foreach ($features as $id => $feature) {
+                if (isset($stopword[$feature])) {
+                    unset($features[$id]);
+                }
+            }
+        }
+    }
+    // }}}
 
     function post_ranking(&$result)
     {
@@ -293,7 +345,7 @@ El mandatario atacó a las tres compañías petroleras involucradas en el accide
 
 "No voy a tolerar más dedos acusadores ni irresponsabilidad", dijo el mandatario tras la reunión con sus asesores. Visiblemente enojado, Obama dijo que el Gobierno federal también tenía que asumir responsabilidades y prometió un control más estricto sobre la industria petrolera.
 EOF
-);
+, "spanish");
 
 var_dump($c);
 
